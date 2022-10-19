@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "common.fullname" . }}-logs
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "common.fullname" . }}-logs
+  template:
+    metadata:
+      labels:
+        app: {{ include "common.fullname" . }}-logs
+{{ include "common.labels" . | indent 8 }}
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        ## In order to reliably read logs from mounted node logging paths, we need to run as root
+        fsGroup: 0
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: swi-opentelemetry-collector
+          image: {{ .Values.otel.container_image }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /swi-otelcol
+            - --config=/conf/relay.yaml
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: SOLARWINDS_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: solarwinds-api-token
+                  key: SOLARWINDS_API_TOKEN
+                  optional: true
+            - name: OTEL_ENVOY_ADDRESS
+              value: {{ quote .Values.otel.endpoint }}
+            - name: OTEL_ENVOY_ADDRESS_TLS_INSECURE
+              value: {{ quote .Values.otel.tls_insecure }}
+            - name: CLUSTER_NAME
+              value: {{ quote .Values.cluster.name }}
+            - name: CLUSTER_UID
+              value: {{ quote .Values.cluster.uid }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+          resources:
+            requests:
+              cpu: {{ .Values.otel.logs_collector.resources.requests.cpu }}
+              memory: {{ .Values.otel.logs_collector.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.otel.logs_collector.resources.limits.cpu }}
+              memory: {{ .Values.otel.logs_collector.resources.limits.memory }}
+          volumeMounts:
+            - mountPath: /var/log/pods
+              name: varlogpods
+              readOnly: true
+            - mountPath: /var/log/containers
+              name: varlogcontainers
+              readOnly: true
+            - mountPath: /var/lib/docker/containers
+              name: varlibdockercontainers
+              readOnly: true
+            - mountPath: /conf
+              name: opentelemetry-collector-configmap
+              readOnly: true
+            - mountPath: /run/log/journal
+              name: runlogjournal
+              readOnly: true
+      volumes:
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: runlogjournal
+          hostPath:
+            path: /run/log/journal
+        - name: opentelemetry-collector-configmap
+          configMap:
+            name: {{ include "common.fullname" . }}-collector-config
+            items:
+              - key: logs.config
+                path: relay.yaml
