@@ -7,7 +7,7 @@ metadata:
     # When the collector configuration is changed, this value on the Deployment resource
     # will change, and the deployment will be rolled. See:
     # https://helm.sh/docs/howto/charts_tips_and_tricks/#automatically-roll-deployments
-    checksum/config: {{ include (print $.Template.BasePath "/config-map.yaml") . | sha256sum }}
+    checksum/config: {{ include (print $.Template.BasePath "/singleton-collector-config-map.yaml") . | sha256sum }}
   labels:
 {{ include "common.labels" . | indent 4 }}
 spec:
@@ -73,7 +73,7 @@ spec:
       volumes:
         - name: opentelemetry-collector-configmap
           configMap:
-            name: {{ include "common.fullname" . }}-collector-config
+            name: {{ include "common.fullname" . }}-singleton-collector-config
             items:
               - key: metrics.config
                 path: relay.yaml
