@@ -1,0 +1,8 @@
+prometheus_url: 10.0.215.35:9090
+
+otel:
+  endpoint: otel-collector.dc-01.cloud.solarwinds.com:443
+
+cluster:
+  name: greg-poirier-azure-dev
+  uid: f7a59b49-7a3d-2d0d-ed6c-589c9166fafb
