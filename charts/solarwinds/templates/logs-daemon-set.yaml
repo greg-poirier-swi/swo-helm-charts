@@ -3,8 +3,6 @@ kind: DaemonSet
 metadata:
   name: {{ include "common.fullname" . }}-logs
   namespace: {{ .Release.Namespace }}
-  annotations:
-    checksum/config: {{ include (print $.Template.BasePath "/logs-collector-config-map.yaml") . | sha256sum }}
   labels:
 {{ include "common.labels" . | indent 4 }}
 spec:
@@ -16,6 +14,9 @@ spec:
       labels:
         app: {{ include "common.fullname" . }}-logs
 {{ include "common.labels" . | indent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/logs-collector-config-map.yaml") . | sha256sum }}
+
     spec:
       terminationGracePeriodSeconds: 30
       securityContext:
